@@ -185,17 +185,28 @@ app.post("/recipes/:id/ingredients", async (req, res) => {
 });
 
 // 6) Juhuslik retsept
-app.get("/randomRecipe", async (req, res) => {
+async function randomRecipeHandler(req, res) {
   try {
-    const result = await db.query(
-      "SELECT id, recipename, instructions FROM recipe ORDER BY RANDOM() LIMIT 1;"
+    const recipeResult = await db.query(
+      "SELECT id, recipename, instructions, imageurl FROM recipe ORDER BY RANDOM() LIMIT 1;"
     );
-    res.json(result.rows[0]);
+    const recipe = recipeResult.rows[0];
+    const ingredientsResult = await db.query(
+      `SELECT i.ingredientname FROM ingredient i
+       JOIN ingredientinrecipe ir ON ir.ingredientid = i.id
+       WHERE ir.recipeid = $1 ORDER BY i.id;`,
+      [recipe.id]
+    );
+    const ingredients = ingredientsResult.rows.map(r => r.ingredientname);
+    res.json({ recipe, ingredients });
   } catch (err) {
-    console.error("DB error /randomRecipe:", err);
+    console.error("DB error /random:", err);
     res.status(500).json({ error: "Database error" });
   }
-});
+}
+
+app.get("/randomRecipe", randomRecipeHandler);
+app.get("/random", randomRecipeHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
