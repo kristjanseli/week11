@@ -99,6 +99,91 @@ app.get("/fullRecipes/search", async (req, res) => {
   }
 });
 
+// --- CRUD ---
+
+// POST - lisa uus retsept
+app.use(express.json());
+
+app.post("/recipes", async (req, res) => {
+  try {
+    const { recipename, instructions } = req.body;
+    const result = await db.query(
+      "INSERT INTO recipe (recipename, instructions) VALUES ($1, $2) RETURNING *;",
+      [recipename, instructions]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("DB error POST /recipes:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// PUT - uuenda retsept
+app.put("/recipes/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { recipename, instructions } = req.body;
+    const result = await db.query(
+      "UPDATE recipe SET recipename = $1, instructions = $2 WHERE id = $3 RETURNING *;",
+      [recipename, instructions, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("DB error PUT /recipes:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// DELETE - kustuta retsept
+app.delete("/recipes/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query("DELETE FROM ingredientinrecipe WHERE recipeid = $1;", [id]);
+    await db.query("DELETE FROM recipe WHERE id = $1;", [id]);
+    res.json({ message: "Recipe deleted" });
+  } catch (err) {
+    console.error("DB error DELETE /recipes:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST - lisa uus koostisosa
+app.post("/ingredients", async (req, res) => {
+  try {
+    const { ingredientname } = req.body;
+    const result = await db.query(
+      "INSERT INTO ingredient (ingredientname) VALUES ($1) RETURNING *;",
+      [ingredientname]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("DB error POST /ingredients:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST - lisa koostisosa retseptile
+app.post("/recipes/:id/ingredients", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ingredientname } = req.body;
+    const ingResult = await db.query(
+      "INSERT INTO ingredient (ingredientname) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id;",
+      [ingredientname]
+    );
+    const ingredientid = ingResult.rows[0]?.id ||
+      (await db.query("SELECT id FROM ingredient WHERE ingredientname = $1;", [ingredientname])).rows[0].id;
+    await db.query(
+      "INSERT INTO ingredientinrecipe (recipeid, ingredientid) VALUES ($1, $2) ON CONFLICT DO NOTHING;",
+      [id, ingredientid]
+    );
+    res.status(201).json({ message: "Ingredient added to recipe" });
+  } catch (err) {
+    console.error("DB error POST /recipes/:id/ingredients:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // 6) Juhuslik retsept
 app.get("/randomRecipe", async (req, res) => {
   try {
