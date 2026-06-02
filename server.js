@@ -61,8 +61,8 @@ app.get("/fullRecipes", async (req, res) => {
         r.instructions,
         json_agg(i.ingredientname ORDER BY i.id) AS ingredients
       FROM recipe r
-      JOIN ingredientinrecipe ir ON ir.recipeid = r.id
-      JOIN ingredient i ON i.id = ir.ingredientid
+      LEFT JOIN ingredientinrecipe ir ON ir.recipeid = r.id
+      LEFT JOIN ingredient i ON i.id = ir.ingredientid
       GROUP BY r.id, r.recipename, r.instructions
       ORDER BY r.id;
     `;
